@@ -1,0 +1,60 @@
+@model ADWebApplication.Models.CollectionConfirmationVM
+
+@{
+    ViewData["Title"] = "Confirm Collection";
+}
+
+<div class="collection-modal">
+    <div class="modal-card">
+        <div class="modal-header">
+            <div>
+                <h4>Collect Bin</h4>
+                <p>Record collection details for @Model.LocationName</p>
+            </div>
+            <a asp-action="Index" class="modal-close" aria-label="Close">
+                <i class="bi bi-x"></i>
+            </a>
+        </div>
+
+        <form asp-action="ConfirmCollection" method="post" class="modal-body">
+            <input type="hidden" asp-for="StopId" />
+            <input type="hidden" asp-for="PointId" />
+            <input type="hidden" asp-for="LocationName" />
+            <input type="hidden" asp-for="Address" />
+            <input type="hidden" asp-for="BinId" />
+
+            <div class="modal-section">
+                <div class="section-label">Fill Level: <span id="fillLevelValue">@(Model.BinFillLevel)%</span></div>
+                <input asp-for="BinFillLevel" type="range" min="0" max="100" class="form-range" id="fillLevelRange" />
+                <span asp-validation-for="BinFillLevel" class="text-danger"></span>
+            </div>
+
+            <div class="modal-section">
+                <label class="section-label" for="notes">Collection Notes (Optional)</label>
+                <textarea asp-for="Remarks" id="notes" class="form-control" rows="3" placeholder="Add any notes about this collection..."></textarea>
+            </div>
+
+            <div class="modal-section modal-actions-row">
+                <a class="btn btn-outline-secondary" asp-action="ReportIssue">
+                    <i class="bi bi-exclamation-circle"></i> Report Issue
+                </a>
+            </div>
+
+            <div class="modal-footer">
+                <a asp-action="Index" class="btn btn-light">Cancel</a>
+                <button type="submit" class="btn btn-success">
+                    Complete Collection
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script src="~/js/collector-dashboard.js" asp-append-version="true"></script>
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/collector-dashboard.css" asp-append-version="true" />
+}

@@ -1,0 +1,322 @@
+@using System.Text.Json
+@inject IConfiguration Configuration
+@model ADWebApplication.Models.CollectorRoute
+
+@{
+    ViewData["Title"] = "Collector Dashboard";
+   
+    var pointsSource = Model.CollectionPoints;
+
+    var pendingPoints = pointsSource.Where(p => p.Status != "Collected").ToList();
+    var completedPoints = pointsSource.Where(p => p.Status == "Collected").ToList();
+    var totalPoints = pointsSource.Count;
+    var completedCount = completedPoints.Count;
+    var pendingCount = pendingPoints.Count;
+    var progressPercentage = totalPoints > 0 ? (int)Math.Round(((double)completedCount / totalPoints) * 100) : 0;
+    var routeStart = Model.ScheduledDate.Date.AddHours(9);
+    var totalPendingMins = pendingPoints.Sum(p => p.EstimatedTimeMins);
+    var estDuration = TimeSpan.FromMinutes(totalPendingMins);
+    var estHours = (int)estDuration.TotalHours;
+    var estMins = estDuration.Minutes;
+    var nextPoint = pendingPoints.FirstOrDefault();
+}
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Google Fonts CSS is generated dynamically, so SRI is not supported here. -->
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="~/css/collector-dashboard.css" asp-append-version="true" />
+
+<div class="collector-dashboard">
+    <div class="row g-4">
+        <div class="col-lg-3">
+            <aside class="collector-sidebar">
+                <div class="sidebar-title">Collection Officer</div>
+                <div class="sidebar-subtitle">Route Management</div>
+                <nav class="sidebar-nav">
+                    <a class="sidebar-link active" asp-action="Index">
+                        <i class="bi bi-geo-alt"></i>
+                        Dashboard
+                    </a>
+                    <a class="sidebar-link" asp-action="MyRouteAssignments">
+                        <i class="bi bi-clipboard-check"></i>
+                        Route Assignment
+                    </a>
+                    <a class="sidebar-link" asp-action="ReportIssue">
+                        <i class="bi bi-exclamation-circle"></i>
+                        Issue Log
+                    </a>
+                </nav>
+            </aside>
+        </div>
+        <div class="col-lg-9">
+            <div class="dashboard-header">
+                <div>
+                    <div class="dashboard-title">Daily Dashboard</div>
+                    <div class="dashboard-date">@DateTime.Now.ToString("dddd, MMMM dd, yyyy")</div>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                <div class="col-md-6 col-xl-3">
+                    <div class="metric-card metric-blue">
+                        <div class="metric-label">Collection Progress</div>
+                        <div class="metric-value" id="collectionProgressValue">@completedCount/@totalPoints</div>
+                        <div class="metric-sub" id="collectionProgressPending">Pending: @pendingCount</div>
+                        <div class="metric-icon">
+                            <i class="bi bi-trash"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="metric-card metric-purple">
+                        <div class="metric-label">Date &amp; Time</div>
+                        <div class="metric-value">@DateTime.Now.ToString("MMM dd, yyyy")</div>
+                        <div class="metric-sub">@DateTime.Now.ToString("hh:mm tt")</div>
+                        <div class="metric-icon">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="metric-card metric-green">
+                        <div class="metric-label">Collection Region</div>
+                        <div class="metric-value">@Model.Zone</div>
+                        <div class="metric-sub">@Model.RouteName</div>
+                        <div class="metric-icon">
+                            <i class="bi bi-geo"></i>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-xl-3">
+                    <div class="metric-card metric-orange">
+                        <div class="metric-label">Est. Duration</div>
+                        <div class="metric-value">
+                            <span>@estHours</span>
+                            <span class="metric-unit">h</span>
+                            <span>@estMins</span>
+                            <span class="metric-unit">min</span>
+                        </div>
+                        <div class="metric-sub">GPS Active</div>
+                        <div class="metric-icon">
+                            <i class="bi bi-broadcast"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="progress-card">
+                <div class="progress-header">
+                    <div class="progress-title">Today's Progress</div>
+                    <div class="progress-percent" id="progressPercent">@progressPercentage% Complete</div>
+                </div>
+                <div class="progress-track">
+                    <div class="progress-fill" id="progressFill" style="width: @progressPercentage%"></div>
+                </div>
+                <div class="progress-meta">
+                    <span>@Model.RouteName</span>
+                    <span>@Model.Zone</span>
+                </div>
+            </div>
+
+            <div class="map-card">
+                <div class="map-title">Route Map</div>
+                <div class="map-frame">
+                    <div id="routeMap" class="route-map"></div>
+                    @if (nextPoint != null)
+                    {
+                        <div class="map-next">Next: @nextPoint.Address</div>
+                    }
+                    <div class="map-controls">
+                        <button type="button" class="map-btn" id="zoomIn">+</button>
+                        <button type="button" class="map-btn" id="zoomOut">-</button>
+                    </div>
+                    <div class="map-legend">
+                        <div><span class="legend-dot legend-complete"></span> Completed</div>
+                        <div><span class="legend-dot legend-pending"></span> Pending</div>
+                        <div><span class="legend-dot legend-you"></span> Your Location</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="details-card">
+                <div class="details-title">Route Details</div>
+
+                <div class="details-section">
+                    <div class="details-status pending">
+                        <i class="bi bi-clock"></i> Pending (@pendingPoints.Count)
+                    </div>
+                    @if (pendingPoints.Any())
+                    {
+                        var cumulativeMinutes = 0;
+                        for (var i = 0; i < pendingPoints.Count; i++)
+                    {
+                        var point = pendingPoints[i];
+                        var binLabel = point.BinId.HasValue ? $"B{point.BinId.Value:000}" : point.PointId;
+                        cumulativeMinutes += point.EstimatedTimeMins;
+                        var scheduledTime = point.PlannedCollectionTime ?? routeStart.AddMinutes(cumulativeMinutes);
+                            <div class="stop-card pending"
+                                 data-stop-id="@point.StopId"
+                                 data-lat="@(point.Latitude?.ToString() ?? "")"
+                                 data-lng="@(point.Longitude?.ToString() ?? "")"
+                                 data-address="@point.Address"
+                                 data-location="@point.LocationName">
+                                <div class="stop-left">
+                                    <div class="stop-badge pending">@binLabel</div>
+                                    <div>
+                                        <div class="stop-title">
+                                            @point.LocationName
+                                            @if (!point.Latitude.HasValue || !point.Longitude.HasValue)
+                                            {
+                                                <span class="gps-badge">No GPS</span>
+                                            }
+                                        </div>
+                                        <div class="stop-meta">Scheduled: @scheduledTime.ToString("HH:mm") <span class="dot">•</span> Fill Level: @point.CurrentFillLevel%</div>
+                                    </div>
+                                </div>
+                                <div class="stop-actions">
+                                    <button type="button"
+                                            class="btn btn-primary btn-sm direction-trigger"
+                                            data-stop-id="@point.StopId">
+                                        <i class="bi bi-signpost"></i> Preview
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-outline-primary btn-sm start-nav-trigger"
+                                            data-stop-id="@point.StopId">
+                                        <i class="bi bi-navigation"></i> Start
+                                    </button>
+                                    <button type="button"
+                                            class="btn btn-success btn-sm collect-trigger"
+                                            data-stop-id="@point.StopId"
+                                            data-bin-id="@(point.BinId?.ToString() ?? "")"
+                                            data-location-name="@point.LocationName"
+                                            data-address="@point.Address"
+                                            data-fill-level="@point.CurrentFillLevel">
+                                        <i class="bi bi-check-circle"></i> Collect
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="details-empty">No pending collections for today.</div>
+                    }
+                </div>
+
+                <div class="details-section">
+                    <div class="details-status complete">
+                        <i class="bi bi-check-circle"></i> Completed (@completedPoints.Count)
+                    </div>
+                    @if (completedPoints.Any())
+                    {
+                        foreach (var point in completedPoints)
+                        {
+                            var binLabel = point.BinId.HasValue ? $"B{point.BinId.Value:000}" : point.PointId;
+                            <div class="stop-card complete"
+                                 data-stop-id="@point.StopId"
+                                 data-lat="@(point.Latitude?.ToString() ?? "")"
+                                 data-lng="@(point.Longitude?.ToString() ?? "")"
+                                 data-address="@point.Address"
+                                 data-location="@point.LocationName">
+                                <div class="stop-left">
+                                    <div class="stop-badge complete">@binLabel</div>
+                                    <div>
+                                        <div class="stop-title">
+                                            @point.LocationName
+                                            @if (!point.Latitude.HasValue || !point.Longitude.HasValue)
+                                            {
+                                                <span class="gps-badge">No GPS</span>
+                                            }
+                                        </div>
+                                        <div class="stop-meta">Completed: @(point.CollectedAt?.ToString("HH:mm") ?? "-")</div>
+                                    </div>
+                                </div>
+                                <div class="stop-actions">
+                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="details-empty">No completed collections yet.</div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="collect-modal" id="collectModal" aria-hidden="true">
+    <div class="collect-modal-card">
+        <div class="collect-modal-header">
+            <div>
+                <h4>Collect Bin</h4>
+                <p id="collectModalSubtitle">Record collection details</p>
+            </div>
+            <button type="button" class="modal-close" id="collectModalClose" aria-label="Close">
+                <i class="bi bi-x"></i>
+            </button>
+        </div>
+
+        <form asp-action="ConfirmCollection" method="post" class="collect-modal-body" id="collectForm">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="StopId" id="collectStopId" />
+            <input type="hidden" name="PointId" id="collectPointId" />
+            <input type="hidden" name="LocationName" id="collectLocationName" />
+            <input type="hidden" name="Address" id="collectAddress" />
+            <input type="hidden" name="BinId" id="collectBinId" />
+
+            <div class="modal-section">
+                <div class="section-label">Fill Level: <span id="collectFillValue">0%</span></div>
+                <input name="BinFillLevel" type="range" min="0" max="100" class="form-range" id="collectFillRange" />
+            </div>
+
+            <div class="modal-section">
+                <label class="section-label" for="collectRemarks">Collection Notes (Optional)</label>
+                <textarea name="Remarks" id="collectRemarks" class="form-control" rows="3" placeholder="Add any notes about this collection..."></textarea>
+            </div>
+
+            <div class="modal-section modal-actions-row">
+                <a class="btn btn-outline-secondary" asp-action="ReportIssue">
+                    <i class="bi bi-exclamation-circle"></i> Report Issue
+                </a>
+            </div>
+
+            <div class="collect-feedback text-danger" id="collectFeedback" role="alert" aria-live="polite"></div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" id="collectCancel">Cancel</button>
+                <button type="submit" class="btn btn-success">
+                    Complete Collection
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const googleMapsKey = @Html.Raw(JsonSerializer.Serialize(ViewBag.GoogleMapsKey ?? ""));
+        const rawStops = @Html.Raw(JsonSerializer.Serialize(
+            Model.CollectionPoints.Select((p, index) => new {
+                id = p.StopId == 0 ? (index + 1) : p.StopId,
+                seq = index + 1,
+                lat = p.Latitude,
+                lng = p.Longitude,
+                status = p.Status == "Collected" ? "completed" : "pending",
+                stopId = p.StopId,
+                address = p.Address,
+                location = p.LocationName
+            })
+        ));
+        const useDemoStops = false;
+        const demoStops = [];
+        const stops = useDemoStops && (!rawStops || rawStops.length === 0) ? demoStops : rawStops;
+        const nextAddress = @Html.Raw(JsonSerializer.Serialize(nextPoint?.Address ?? ""));
+    </script>
+    <script src="~/js/collector-dashboard.js" asp-append-version="true"></script>
+    <!-- Google Maps JS does not support SRI; key is expected to be domain-restricted. -->
+    <script src="https://maps.googleapis.com/maps/api/js?key=@ViewBag.GoogleMapsKey&callback=initRouteMap&loading=async" async defer></script>
+}

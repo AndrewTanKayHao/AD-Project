@@ -1,0 +1,325 @@
+@using System.Linq
+@using System.Text.Json
+@model ADWebApplication.Models.DTOs.AdminDashboardViewModel
+
+@{
+    ViewData["Title"] = "Admin Dashboard";
+    Layout = "_AdminLayout";
+}
+
+<!-- Dashboard Header -->
+<div class="dashboard-header">
+    <div class="container-fluid px-4">
+        <div class="row align-items-center">
+            <div class="col-md-6">
+                <h1 class="mb-1">Overview Dashboard</h1>
+                <p class="text-muted mb-0">Command summary for operational planning and system performance</p>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="container-fluid px-4">
+    <div class="row g-3 mb-4">
+        @await Html.PartialAsync("_KPICards", Model.KPIs)
+    </div>
+    <div class="row">
+        <!-- Left Column: Operational Readiness & Today's Operations -->
+        <div class="col-lg-6">
+            <!-- Operational Readiness -->
+            <h4 class="mb-3">Operational Readiness</h4>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                    <div class="stat-card">
+                        <div class="icon-wrapper blue">
+                            <i class="bi bi-box-seam fs-4"></i>
+                        </div>
+                        <h2 class="stat-number">@Model.ActiveBinsCount</h2>
+                        <p class="stat-label">Active Bins</p>
+                        <p class="stat-sublabel">of @Model.TotalBinsCount bins</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stat-card alert-card">
+                        <div class="icon-wrapper red">
+                            <i class="bi bi-exclamation-triangle fs-4"></i>
+                        </div>
+                        <div class="badge bg-danger position-absolute top-0 end-0 m-3">Alert</div>
+                        <h2 class="stat-number">@Model.HighRiskUnscheduledCount</h2>
+                        <p class="stat-label">High-Risk Unscheduled</p>
+                        <p class="stat-sublabel">Urgent action required</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Alerts & Notifications -->
+        <div class="col-lg-6">
+            <h4 class="mb-3">Alerts & Notifications</h4>
+
+            @if (Model.Alerts != null && Model.Alerts.Any())
+            {
+                foreach (var alert in Model.Alerts)
+                {
+                    <div class="alert-box @(alert.Type == "HighRisk" ? "danger" : "warning")">
+                        <div class="d-flex">
+                            <div class="alert-icon me-3">
+                                <i class="bi @(alert.Type == "HighRisk"
+                                                                           ? "bi-exclamation-circle"
+                                                                           : "bi-exclamation-triangle")"></i>
+                            </div>
+
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">@alert.Title</h6>
+                                <p class="mb-2 text-muted small">@alert.Message</p>
+
+                                <div class="d-flex justify-content-end">
+                                    <a href="@alert.LinkUrl" class="text-decoration-none small">
+                                        @alert.LinkText <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="text-muted small">No alerts at the moment.</div>
+            }
+        </div>
+
+        <!-- System Performance & Participation -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <h4 class="mb-3">System Performance & Participation</h4>
+            </div>
+            <div class="col-12 mb-4">
+                <div class="chart-container">
+                    <h5 class="mb-3">Regional Performance Overview</h5>
+                    @if (Model.PerformanceMetrics != null && Model.PerformanceMetrics.Any())
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Region</th>
+                                        <th class="text-end">Collections</th>
+                                        <th class="text-end">Participation Rate</th>
+                                        <th class="text-end">Performance</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var metric in Model.PerformanceMetrics)
+                                    {
+                                        string performanceClass;
+                                        string performanceIcon;
+                                        string performanceText;
+                                        
+                                        if (metric.Participation >= 50)
+                                        {
+                                            performanceClass = "success";
+                                            performanceIcon = "bi-arrow-up-circle-fill";
+                                            performanceText = "Good";
+                                        }
+                                        else if (metric.Participation >= 20)
+                                        {
+                                            performanceClass = "warning";
+                                            performanceIcon = "bi-dash-circle-fill";
+                                            performanceText = "Fair";
+                                        }
+                                        else
+                                        {
+                                            performanceClass = "danger";
+                                            performanceIcon = "bi-arrow-down-circle-fill";
+                                            performanceText = "Low";
+                                        }
+
+                                        <tr>
+                                            <td>
+                                                <strong>@metric.Area</strong>
+                                            </td>
+                                            <td class="text-end">
+                                                <span class="badge bg-primary">@metric.Collections</span>
+                                            </td>
+                                            <td class="text-end">
+                                                @metric.Participation.ToString("F2")%
+                                            </td>
+                                            <td class="text-end">
+                                                <i class="bi @performanceIcon text-@performanceClass"></i>
+                                                <span class="text-@performanceClass ms-1">
+                                                    @performanceText
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-muted small">No regional performance data available.</div>
+                    }
+                </div>
+            </div>
+
+            <!-- Metrics -->
+            <div class="col-md-4 mb-3">
+                <div class="metric-card">
+                    <p class="text-muted mb-1">Completed Deposits (MTD)</p>
+                    <div class="d-flex align-items-baseline">
+                        <h3 class="metric-value mb-0">@Model.KPIs.CurrentCollectionMTD.ToString("N0")</h3>
+                        
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="metric-card">
+                    <p class="text-muted mb-1">E-Waste Weight Deposited (MTD)</p>
+                    <div class="d-flex align-items-baseline">
+                        <h3 class="metric-value mb-0">@Model.KPIs.CurrentWeightMTD.ToString("N1") kg</h3>
+                       
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Charts -->
+            <div class="col-lg-7 mb-4">
+                <div class="chart-container">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="mb-0">Collection Trends (Recent Months)</h5>
+                        <div>
+                            <span class="badge bg-primary me-2">Collections</span>
+                            <span class="badge bg-success">Weight</span>
+                        </div>
+                    </div>
+                    <canvas id="collectionChart" height="5"></canvas>
+                </div>
+            </div>
+
+            <div class="col-lg-5 mb-3">
+                <div class="chart-container">
+                    <h5 class="mb-4">E-Waste Category Distribution</h5>
+                    <div class="row g-4">
+                        <div class="col-12 col-md-5">
+                            <div class="category-chart-wrap">
+                                <canvas id="categoryChart" height="220"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-7">
+                            @if (Model.CategoryBreakdowns != null && Model.CategoryBreakdowns.Count > 0)
+                            {
+                                <div class="category-list">
+                                    @foreach (var item in Model.CategoryBreakdowns)
+                                    {
+                                        <div class="category-item">
+                                            <div class="category-left">
+                                                <span class="category-dot" style="background: @item.Color;"></span>
+                                                <span class="category-name">@item.Category</span>
+                                            </div>
+                                            <span class="category-percent">@item.Value%</span>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-muted small">No category data yet.</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Help Button -->
+        <button class="help-button">
+            <i class="bi bi-question-lg"></i>
+        </button>
+
+        <!-- Scripts -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+            integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+            crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
+            integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4"
+            crossorigin="anonymous"></script>
+        <script>
+            // Collection Trends Chart
+            const collectionLabels = @Html.Raw(JsonSerializer.Serialize(Model.CollectionTrends.Select(t => t.Month)));
+            const collectionCounts = @Html.Raw(JsonSerializer.Serialize(Model.CollectionTrends.Select(t => t.Collections)));
+            const collectionWeights = @Html.Raw(JsonSerializer.Serialize(Model.CollectionTrends.Select(t => t.Weight)));
+            const collectionCtx = document.getElementById('collectionChart').getContext('2d');
+            new Chart(collectionCtx, {
+                type: 'bar',
+                data: {
+                    labels: collectionLabels,
+                    datasets: [
+                        {
+                            label: 'Collections',
+                            data: collectionCounts,
+                            backgroundColor: '#0d6efd',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Weight',
+                            data: collectionWeights,
+                            backgroundColor: '#28a745',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    }
+                }
+            });
+
+            // Category Distribution Chart
+            const categoryLabels = @Html.Raw(JsonSerializer.Serialize(Model.CategoryBreakdowns!.Select(c => c.Category)));
+            const categoryValues = @Html.Raw(JsonSerializer.Serialize(Model.CategoryBreakdowns!.Select(c => c.Value)));
+            const categoryColorsRaw = @Html.Raw(JsonSerializer.Serialize(Model.CategoryBreakdowns!.Select(c => c.Color)));
+            const categoryPalette = ['#0ea5e9', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6', '#f97316', '#6366f1'];
+            const categoryColors = categoryColorsRaw.map((c, i) => c || categoryPalette[i % categoryPalette.length]);
+            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: categoryLabels,
+                    datasets: [{
+                        data: categoryValues,
+                        backgroundColor: categoryColors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
+        </script>
