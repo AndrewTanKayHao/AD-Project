@@ -44,9 +44,6 @@
     // Load secrets from environment variables (Railway injects these automatically)
     builder.Configuration.AddEnvironmentVariables();
 
-    // TEMP: diagnose Railway env vars
-    var diagConn = builder.Configuration.GetConnectionString("DefaultConnection");
-    Console.WriteLine($"[DIAG] ConnectionStrings__DefaultConnection = '{diagConn ?? "NULL"}'");
     //Force the app to crash if secrets missing
     void Require(string key)
     {
