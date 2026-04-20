@@ -32,6 +32,7 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
     <PackageReference Include="Google.OrTools" Version="9.15.6755" />
+    <PackageReference Include="Resend" Version="0.4.0" />
   </ItemGroup>
 
 </Project>

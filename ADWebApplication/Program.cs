@@ -20,7 +20,7 @@
     builder.Logging.ClearProviders();
     builder.Logging.AddConsole();
 
-    builder.Services.AddScoped<IEmailService, EmailService>();
+    builder.Services.AddHttpClient<IEmailService, EmailService>();
     builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
     builder.Services.AddScoped<IAdminRepository, AdminRepository>();
     builder.Services.AddScoped<ICollectorService, CollectorService>();
