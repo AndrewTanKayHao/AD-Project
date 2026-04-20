@@ -195,7 +195,7 @@
         };
 
         // Allow Azure proxy
-        forwardOptions.KnownNetworks.Clear();
+        forwardOptions.KnownIPNetworks.Clear();
         forwardOptions.KnownProxies.Clear();
 
         app.UseForwardedHeaders(forwardOptions);
